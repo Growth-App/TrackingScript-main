@@ -1,10 +1,56 @@
+interface TrafficData {
+  source: string;
+  utm_source: string;
+  utm_campaign: string;
+  utm_medium: string;
+  device_type: string;
+  browser_type: string;
+  operating_system: string;
+  page_url: string;
+  social_media_profiles: string[];
+  time_spent: number;
+  form_interactions: FormInteraction[];
+  click_events: ClickEvent[];
+  scroll_depth: number;
+  js_errors: JsError[];
+  heatmap_data: Record<string, number>;
+  geographic_location?: string;
+  organic_keywords?: string;
+}
+
+interface FormInteraction {
+  form_id: string;
+  fields: string[];
+  time_spent: number;
+  submission_status: boolean;
+}
+
+interface ClickEvent {
+  element: string;
+  id: string;
+  class: string;
+  time: string;
+}
+
+interface JsError {
+  message: string;
+  source: String;
+  lineno: number;
+  colno: number;
+  time: string;
+}
+
+interface HeatmapData {
+  [key: string]: number;
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   // Function to parse the query string
-  function getQueryStringParams(query) {
+  function getQueryStringParams(query: string): Record<string, string> {
     return query
       ? (/^[?#]/.test(query) ? query.slice(1) : query)
           .split("&")
-          .reduce((params, param) => {
+          .reduce((params: Record<string, string>, param: string) => {
             let [key, value] = param.split("=");
             params[key] = value
               ? decodeURIComponent(value.replace(/\+/g, " "))
@@ -14,7 +60,7 @@ document.addEventListener("DOMContentLoaded", function () {
       : {};
   }
 
-  function detectDeviceType() {
+  function detectDeviceType(): string {
     const ua = navigator.userAgent;
     if (/tablet|ipad|playbook|silk/i.test(ua)) {
       return "tablet";
@@ -41,7 +87,7 @@ document.addEventListener("DOMContentLoaded", function () {
       /(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i
     ) || [];
 
-  let browserType;
+  let browserType: string;
 
   if (/trident/i.test(browserName[1])) {
     browserType =
@@ -70,8 +116,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Prepare data to be sent
-  const trafficData = {
-    source: source,
+  const trafficData: TrafficData = {
+    source,
     utm_source: utmSource,
     utm_campaign: utmCampaign,
     utm_medium: utmMedium,
@@ -111,14 +157,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Form interaction
   document.querySelectorAll("form").forEach(function (form) {
-    let formData = {
+    let formData: FormInteraction = {
       form_id: form.id,
       fields: [],
       time_spent: 0,
       submission_status: false,
     };
 
-    let formStartTime = null;
+    let formStartTime: number | null = null;
 
     form.addEventListener(
       "focus",
@@ -128,28 +174,28 @@ document.addEventListener("DOMContentLoaded", function () {
       true
     );
 
-    form.addEventListener("blur", function (event) {
-      if (
-        event.target.tagName === "INPUT" ||
-        event.target.tagName === "TEXTAREA"
-      ) {
-        formData.fields.push(event.target.name);
+    form.addEventListener("blur", function (event: FocusEvent) {
+      const target = event.target as HTMLInputElement | HTMLTextAreaElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        formData.fields.push(target.name);
       }
     });
 
     form.addEventListener("submit", function () {
-      formData.time_spent = (Date.now() - formStartTime) / 1000;
+      if (formStartTime !== null) {
+        formData.time_spent = (Date.now() - formStartTime) / 1000;
+      }
       formData.submission_status = true;
       trafficData.form_interactions.push(formData);
     });
   });
 
   // Clicks events
-  document.addEventListener("clicks", function (event) {
+  document.addEventListener("click", function (event: MouseEvent) {
     trafficData.click_events.push({
-      element: element.target.tagName,
-      id: event.target.id,
-      class: event.target.className,
+      element: (event.target as HTMLElement).tagName,
+      id: (event.target as HTMLElement).id,
+      class: (event.target as HTMLElement).className,
       time: new Date().toISOString(),
     });
   });
@@ -167,7 +213,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Javascript Errors
-  window.addEventListener("error", function (event) {
+  window.addEventListener("error", function (event: ErrorEvent) {
     trafficData.js_errors.push({
       message: event.message,
       source: event.filename,
@@ -178,7 +224,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Heatmap Data
-  document.addEventListener("click", function (event) {
+  document.addEventListener("click", function (event: MouseEvent) {
     let x = event.clientX;
     let y = event.clientY;
     let key = `${x},${y}`;
@@ -193,10 +239,7 @@ document.addEventListener("DOMContentLoaded", function () {
   /****************************************/
 
   // Function to get the country name from the coordinates
-  function getCountryName(lat, lon) {
-    // You can use any geocoding service that suits your needs
-    // Here we use the GeoNames API as an example
-    // You need to register for a free account and get an API key
+  function getCountryName(lat: number, lon: number): void {
     const apiKey = "xekhai";
     const url = `http://api.geonames.org/countryCodeJSON?lat=${lat}&lng=${lon}&username=${apiKey}`;
     fetch(url)
@@ -240,6 +283,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Function to send data to your server-side endpoint
   function sendData() {
+    let userId: string | null = null;
     fetch(
       "https://growthapp-backend-c991.onrender.com/api/data/track-traffic",
       {
@@ -287,48 +331,3 @@ document.addEventListener("DOMContentLoaded", function () {
     sendData();
   }
 });
-
-// To get the referral source
-// also sometimes because of privacy reasons i think, the referrer may not be available, in situations like when the user is coming from an HTTPS site to an HTTP site or a setting on their browser
-const referralSource = document.referrer;
-
-// To get Organic search keywords
-// Function to parse URL parameters
-function getParameterByName(name, url) {
-  if (!url) url = window.location.href;
-  name = name.replace(/[\[\]]/g, "\\$&");
-  const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-    results = regex.exec(url);
-  if (!results) return null;
-  if (!results[2]) return "";
-  return decodeURIComponent(results[2].replace(/\+/g, " "));
-}
-
-// Extract search query from the referrer URL
-const searchQuery = getParameterByName("q", referralSource);
-
-// the way i did this, it might only work for google, because google uses the 'q' parameter to store the search query, it might not work the same way for other search engines
-// console.log("Organic Search Keyword:", searchQuery);
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// To get Paid search keywords
-const urlParams = new URLSearchParams(referralSource);
-// Identify search engine, which is most likely to be Google.
-const searchEngine = urlParams.get("utm_source");
-if (searchEngine === "google") {
-  const paidKeywords = urlParams.get("utm_term");
-  console.log("Paid Search Keywords:", paidKeywords);
-} else {
-  console.log("Not a paid search referral.");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// To get direct traffic
-// Checkng if the referrer URL is empty or matches the current domain
-const isDirectTraffic =
-  referralSource === "" || referralSource.startsWith(window.location.origin);
-if (isDirectTraffic) {
-  console.log("Direct Traffic");
-} else {
-  console.log("Not Direct Traffic");
-}
