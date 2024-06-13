@@ -1,0 +1,38 @@
+{
+  "name": "trackingscript-main",
+  "version": "1.0.0",
+  "description": "TypeScript version for the tracking scripts ",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "watch": "tsc --watch",
+    "obfuscate": "javascript-obfuscator dist/index.js --output dist/obfuscated"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Growth-App/TrackingScript-main.git"
+  },
+  "keywords": [
+    "tracking",
+    "scripts",
+    "cro",
+    "seo",
+    "contents",
+    "conversion",
+    "rate"
+  ],
+  "author": "GrowthApp",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Growth-App/TrackingScript-main/issues"
+  },
+  "homepage": "https://github.com/Growth-App/TrackingScript-main#readme",
+  "devDependencies": {
+    "javascript-obfuscator": "^4.1.0",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "terser": "^5.31.1"
+  }
+}
