@@ -1,16 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
   // Function to parse the query string
-  /**
-   * The function `getQueryStringParams` parses a query string and returns an object containing
-   * key-value pairs of the parameters.
-   * @param query - The `query` parameter in the `getQueryStringParams` function is a string
-   * representing the query parameters of a URL. It typically includes key-value pairs separated by "&"
-   * and key-value pairs separated by "=". For example, in the URL
-   * `https://www.example.com?name=John&age
-   * @returns The `getQueryStringParams` function is returning an object containing key-value pairs
-   * parsed from the query string provided as an argument. If no query string is provided, an empty
-   * object is returned.
-   */
   function getQueryStringParams(query) {
     return query
       ? (/^[?#]/.test(query) ? query.slice(1) : query)
@@ -98,6 +87,19 @@ document.addEventListener("DOMContentLoaded", function () {
     scroll_depth: 0,
     js_errors: [],
     heatmap_data: {},
+
+    //
+    total_sessions: 0,
+    unique_visitors: 0,
+    returning_visitors: 0,
+    new_visitors: 0,
+    session_duration: 0,
+    time_on_page: 0,
+    page_views: 0,
+    session_recording: [],
+    form_analyses: [],
+    funnel_analyses: [],
+    ecommerce_meterics: {},
   };
 
   // Extended Features starts here
@@ -198,6 +200,93 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     trafficData.heatmap_data[key]++;
+  });
+
+  // Session Tracking
+  trafficData.total_sessions++;
+  const visitorId = localStorage.getItem("visitorId");
+  if (!visitorId) {
+    localStorage.setItem("visitorId", Date.now());
+    trafficData.unique_visitors++;
+    trafficData.new_visitors++;
+  } else {
+    trafficData.returning_visitors++;
+  }
+
+  // Session Duration
+  setInterval(() => {
+    trafficData.session_duration++;
+  }, 1000);
+
+  // Time on Page
+  let pageStartTime = Date.now();
+  window.addEventListener("veforeunload", function () {
+    trafficData.time_on_page = (Date.now() - pageStartTime) / 1000;
+  });
+
+  // Page Views
+  trafficData.page_views++;
+
+  // Form Analysis
+  document.querySelectorAll("form").forEach(function (form) {
+    let formAnalysis = {
+      form_id: form.id,
+      completion_Rate: 0,
+      abandonment_Rate: 0,
+    };
+
+    form.addEventListener("submit", function () {
+      formAnalysis.completion_Rate++;
+      trafficData.form_analyses.push(formAnalysis);
+    });
+
+    form.addEventListener("reset", function () {
+      formAnalysis.abandonment_Rate++;
+      trafficData.form_analyses.push(formAnalysis);
+    });
+  });
+
+  // Conversion Tracking: Funnel Analysis
+  const funnelStages = ["Cart", "Billing", "Payment"];
+  const stageCounts = {};
+  let prevStage = null;
+
+  funnelStages.forEach((stage, index) => {
+    const completion_rate =
+      index === 0
+        ? 1
+        : stageCounts[stage] / stageCounts[funnelStages[index - 1]];
+    trafficData.funnel_analyses.push({
+      stage: stage,
+      completion_rate: completion_rate,
+    });
+
+    prevStage = stage;
+  });
+
+  //Conversion Tracking: Ecommerce tracking
+  trafficData.ecommerce_meterics = {
+    product_views: 0,
+    cart_additions: 0,
+    purchase_completions: 0,
+  };
+
+  document.querySelectorAll(".product-view").forEach(function (product) {
+    product.addEventListener("click", function () {
+      trafficData.ecommerce_meterics.product_views++;
+    });
+  });
+
+  document.querySelectorAll(".add-to-cart").forEach(function (button) {
+    button.addEventListener("click", function () {
+      trafficData.ecommerce_meterics.cart_additions++;
+    });
+  });
+
+  document.querySelectorAll(".complete-purchase").forEach(function (button) {
+    button.addEventListener("click", function () {
+      trafficData.ecommerce_meterics.purchase_completions++;
+    });
   });
 
   // Extended features ends here
