@@ -16,6 +16,17 @@ interface TrafficData {
   heatmap_data: Record<string, number>;
   geographic_location?: string;
   organic_keywords?: string;
+  total_sessions: number;
+  unique_visitors: number;
+  returning_visitors: number;
+  new_visitors: number;
+  session_duration: number;
+  time_on_page: number;
+  page_views: number;
+  session_recording: any[];
+  form_analyses: FormAnalysis[];
+  funnel_analyses: FunnelAnalysis[];
+  ecommerce_metrics: EcommerceMetrics;
 }
 
 interface FormInteraction {
@@ -42,6 +53,23 @@ interface JsError {
 
 interface HeatmapData {
   [key: string]: number;
+}
+
+interface FormAnalysis {
+  form_id: string;
+  completion_rate: number;
+  abandonment_rate: number;
+}
+
+interface FunnelAnalysis {
+  stage: string;
+  completion_rate: number;
+}
+
+interface EcommerceMetrics {
+  product_views: number;
+  cart_additions: number;
+  purchase_completions: number;
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -117,7 +145,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Prepare data to be sent
   const trafficData: TrafficData = {
-    source,
+    source: source,
     utm_source: utmSource,
     utm_campaign: utmCampaign,
     utm_medium: utmMedium,
@@ -133,6 +161,21 @@ document.addEventListener("DOMContentLoaded", function () {
     scroll_depth: 0,
     js_errors: [],
     heatmap_data: {},
+    total_sessions: 0,
+    unique_visitors: 0,
+    returning_visitors: 0,
+    new_visitors: 0,
+    session_duration: 0,
+    time_on_page: 0,
+    page_views: 0,
+    session_recording: [],
+    form_analyses: [],
+    funnel_analyses: [],
+    ecommerce_metrics: {
+      product_views: 0,
+      cart_additions: 0,
+      purchase_completions: 0,
+    },
   };
 
   // Extended Features starts here
@@ -233,6 +276,93 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     trafficData.heatmap_data[key]++;
+  });
+
+  // Session Tracking
+  trafficData.total_sessions++;
+  const visitorId = localStorage.getItem("visitorId");
+  if (!visitorId) {
+    localStorage.setItem("visitorId", Date.now().toString());
+    trafficData.unique_visitors++;
+    trafficData.new_visitors++;
+  } else {
+    trafficData.returning_visitors++;
+  }
+
+  // Session DUration
+  setInterval(() => {
+    trafficData.session_duration++;
+  }, 1000);
+
+  // Time on Page
+  let pageStartTime = Date.now();
+  window.addEventListener("beforeunload", function () {
+    trafficData.time_on_page = (Date.now() - pageStartTime) / 1000;
+  });
+
+  // Page Views
+  trafficData.page_views++;
+
+  // Form Analyses
+  document.querySelectorAll("form").forEach(function (form) {
+    const formAnalysis: FormAnalysis = {
+      form_id: form.id,
+      completion_rate: 0,
+      abandonment_rate: 0,
+    };
+
+    form.addEventListener("submit", function () {
+      formAnalysis.completion_rate++;
+      trafficData.form_analyses.push(formAnalysis);
+    });
+
+    form.addEventListener("reset", function () {
+      formAnalysis.abandonment_rate++;
+      trafficData.form_analyses.push(formAnalysis);
+    });
+  });
+
+  // Conversion Tracking: Funnel Analysis
+  const funnelStages = ["Cart", "Billing", "Payment"];
+  const stageCounts: Record<string, number> = {};
+  let prevStage: string | null = null;
+
+  funnelStages.forEach((stage, index) => {
+    const completion_rate =
+      index === 0
+        ? 1
+        : stageCounts[stage] / stageCounts[funnelStages[index - 1]];
+    trafficData.funnel_analyses.push({
+      stage: stage,
+      completion_rate: completion_rate,
+    });
+
+    prevStage = stage;
+  });
+
+  // Conversion Tracking: Ecommerce tracking
+  trafficData.ecommerce_metrics = {
+    product_views: 0,
+    cart_additions: 0,
+    purchase_completions: 0,
+  };
+
+  document.querySelectorAll(".product-view").forEach(function (product) {
+    product.addEventListener("click", function () {
+      trafficData.ecommerce_metrics.product_views++;
+    });
+  });
+
+  document.querySelectorAll(".add-to-cart").forEach(function (button) {
+    button.addEventListener("click", function () {
+      trafficData.ecommerce_metrics.cart_additions++;
+    });
+  });
+
+  document.querySelectorAll(".complete-purchase").forEach(function (button) {
+    button.addEventListener("click", function () {
+      trafficData.ecommerce_metrics.purchase_completions++;
+    });
   });
 
   // Extended features ends here
