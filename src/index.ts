@@ -489,8 +489,8 @@ document.addEventListener("DOMContentLoaded", function () {
   function sendData() {
     let userId: string | null = null;
     fetch(
-      // "https://growthapp-backend-c991.onrender.com/api/data/track-traffic",
-      "http://localhost:3000/api/data/track-traffic",
+      "https://growthapp-backend-c991.onrender.com/api/data/track-traffic",
+      // "http://localhost:3000/api/data/track-traffic",
       {
         method: "POST",
         headers: {
