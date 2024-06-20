@@ -26,7 +26,12 @@ interface TrafficData {
   session_recording: any[];
   form_analyses: FormAnalysis[];
   funnel_analyses: FunnelAnalysis[];
+  // funnel_steps:FunnelStep[]
   ecommerce_metrics: EcommerceMetrics;
+  // ecommerce_metrics: EcommerceEvent[];
+  content_performance?: ContentPerformance;
+  technical_measurment?: TechnicalMeasurements;
+  seo_performance?: SEOPerformance;
 }
 
 interface FormInteraction {
@@ -72,6 +77,36 @@ interface EcommerceMetrics {
   purchase_completions: number;
 }
 
+interface EcommerceEvent {
+  event: string;
+  data: Record<string, any>;
+  timestamp: number;
+}
+
+interface FunnelStep {
+  step: string;
+  timestamp: number;
+}
+interface ContentPerformance {
+  page_views_by_content_type: Record<string, number>;
+  time_spent_on_content: Record<string, number>;
+  scroll_depth: Record<string, number>;
+  content_shares: Record<string, number>;
+}
+
+interface TechnicalMeasurements {
+  page_load_time: number;
+  error_tracking: JsError[];
+  broken_links: string[];
+  website_speed: number;
+}
+
+interface SEOPerformance {
+  organic_traffic: number;
+  keyword_ranking: Record<string, number>;
+  landing_page_performance: Record<string, number>;
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   // Function to parse the query string
   function getQueryStringParams(query: string): Record<string, string> {
@@ -100,6 +135,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   let source = "Direct";
   let referrer = document.referrer;
+  console.log("referrer:", referrer);
 
   const urlParams = getQueryStringParams(window.location.search);
   const utmSource = urlParams.utm_source || "not set";
@@ -135,9 +171,12 @@ document.addEventListener("DOMContentLoaded", function () {
     a.href = referrer;
     const referrerHostname = a.hostname;
     if (referrerHostname.indexOf("google") > -1) source = "Organic Search";
+    // add more serach engine
+    // simplify the logic (exit early in the code)
     else if (
       referrerHostname.indexOf("facebook") > -1 ||
       referrerHostname.indexOf("twitter") > -1
+      // capture more social media domains
     )
       source = "Social Media";
     else source = "Referral (" + referrerHostname + ")";
@@ -171,10 +210,29 @@ document.addEventListener("DOMContentLoaded", function () {
     session_recording: [],
     form_analyses: [],
     funnel_analyses: [],
+    // funnel_steps: [],
     ecommerce_metrics: {
       product_views: 0,
       cart_additions: 0,
       purchase_completions: 0,
+    },
+    // ecommerce_metrics: [],
+    content_performance: {
+      page_views_by_content_type: {},
+      time_spent_on_content: {},
+      scroll_depth: {},
+      content_shares: {},
+    },
+    technical_measurment: {
+      page_load_time: 0,
+      error_tracking: [],
+      broken_links: [],
+      website_speed: 0,
+    },
+    seo_performance: {
+      organic_traffic: 0,
+      keyword_ranking: {},
+      landing_page_performance: {},
     },
   };
 
@@ -268,9 +326,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Heatmap Data
   document.addEventListener("click", function (event: MouseEvent) {
-    let x = event.clientX;
-    let y = event.clientY;
-    let key = `${x},${y}`;
+    const x = event.clientX;
+    const y = event.clientY;
+    const key = `${x},${y}`;
     if (!trafficData.heatmap_data[key]) {
       trafficData.heatmap_data[key] = 0;
     }
@@ -278,30 +336,66 @@ document.addEventListener("DOMContentLoaded", function () {
     trafficData.heatmap_data[key]++;
   });
 
-  // Session Tracking
-  trafficData.total_sessions++;
-  const visitorId = localStorage.getItem("visitorId");
-  if (!visitorId) {
-    localStorage.setItem("visitorId", Date.now().toString());
-    trafficData.unique_visitors++;
-    trafficData.new_visitors++;
-  } else {
-    trafficData.returning_visitors++;
+  // Total sessions, unique visitors, returning visitors, new visitors
+
+  // one click handler and input handler
+  // one 
+
+  function manageSessionData() {
+    const sessionKey = "user_Session";
+    const session = sessionStorage.getItem(sessionKey);
+    const uniqueKey = "unique_visitors";
+    const returningKey = "returning_visitors";
+
+    // use return instead of nested if else
+    // new session should be an event (create a table for session, session id(return id instead of active), userId, startTime and lastUpdatedAt)
+    // pass device id for every click events , heatmap [capture clicks : create a click table, store the]
+    // start session endpoint and update session endpoint
+
+    if (!session) {
+      sessionStorage.setItem(sessionKey, "active");
+      trafficData.total_sessions++;
+      const uniqueVisitors = localStorage.getItem(sessionKey);
+
+      if (uniqueVisitors) {
+        localStorage.setItem(
+          uniqueKey,
+          (parseInt(uniqueVisitors) + 1).toString()
+        );
+      } else {
+        localStorage.setItem(uniqueKey, "1");
+      }
+
+      trafficData.unique_visitors++;
+    } else {
+      trafficData.returning_visitors++;
+    }
   }
 
-  // Session DUration
-  setInterval(() => {
-    trafficData.session_duration++;
-  }, 1000);
+  manageSessionData();
 
-  // Time on Page
-  let pageStartTime = Date.now();
-  window.addEventListener("beforeunload", function () {
-    trafficData.time_on_page = (Date.now() - pageStartTime) / 1000;
-  });
+  // Session Duration and TIme on Page
+  function updateSessionTime() {
+    const sessionStartKey = "session_Start";
+    const sessionStart = sessionStorage.getItem(sessionStartKey);
+
+    if (!sessionStart) {
+      sessionStorage.setItem(sessionStartKey, Date.now().toString());
+    } else {
+      const duration = (Date.now() - parseInt(sessionStart)) / 1000;
+      trafficData.session_duration = duration;
+      trafficData.time_on_page = duration;
+    }
+  }
+
+  // Session Duration (every 5-10 secs)
+  // should update both page view and the session
+  setInterval(updateSessionTime, 5000);
 
   // Page Views
-  trafficData.page_views++;
+  // session id and the page url and the reffer (create a table for it)
+  // log the page view
+  trafficData.page_views++; 
 
   // Form Analyses
   document.querySelectorAll("form").forEach(function (form) {
@@ -384,27 +478,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.error("Error:", error);
       });
   }
-  //     // Function to get the country and city from IP address using Geolocator
-  //   function getCountryAndCity() {
-  //     // Use geolocator.locateByIP to get location information
-  //     geolocator.locateByIP()
-  //       .then((location) => {
-  //         // Extract country and city information from the location data
-  //         const country = location.address.country || "Unknown";
-  //         const city = location.address.city || "Unknown";
-  //         // Add the country and city to the traffic data
-  //         trafficData.geographic_location = ${city}, ${country};
-  //         // Send data to your server-side endpoint
-  //         sendData();
-  //       })
-  //       .catch((error) => {
-  //         console.error("Error:", error);
-  //         // Send data without the geographic location
-  //         sendData();
-  //       });
-  //   }
-  //   getCountryAndCity();
-  // Function to get the page URL
+
   function getPageURL() {
     // Add the page URL to the traffic data
     trafficData.page_url = window.location.href;
@@ -415,7 +489,8 @@ document.addEventListener("DOMContentLoaded", function () {
   function sendData() {
     let userId: string | null = null;
     fetch(
-      "https://growthapp-backend-c991.onrender.com/api/data/track-traffic",
+      // "https://growthapp-backend-c991.onrender.com/api/data/track-traffic",
+      "http://localhost:3000/api/data/track-traffic",
       {
         method: "POST",
         headers: {
