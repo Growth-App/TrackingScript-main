@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 interface TrafficData {
   source: string;
   utm_source: string;
@@ -32,6 +33,13 @@ interface TrafficData {
   content_performance?: ContentPerformance;
   technical_measurment?: TechnicalMeasurements;
   seo_performance?: SEOPerformance;
+  device_info: DeviceInfo;
+}
+
+interface DeviceInfo {
+  device_model: string;
+  os: string;
+  userAgent: string;
 }
 
 interface FormInteraction {
@@ -39,6 +47,7 @@ interface FormInteraction {
   fields: string[];
   time_spent: number;
   submission_status: boolean;
+  value?: any;
 }
 
 interface ClickEvent {
@@ -46,6 +55,8 @@ interface ClickEvent {
   id: string;
   class: string;
   time: string;
+  x?: number;
+  y?: number;
 }
 
 interface JsError {
@@ -108,6 +119,46 @@ interface SEOPerformance {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  const sessionId = uuidv4();
+  const siteId = uuidv4();
+
+  function getDeviceId() {
+    let deviceId = localStorage.getItem("device_id");
+    if (!deviceId) {
+      deviceId = uuidv4();
+      localStorage.setItem("device_id", deviceId);
+    }
+    return deviceId;
+  }
+
+  const deviceId = getDeviceId()
+
+  function updateSession(){
+    const sessionData = {
+      site_id: siteId,
+      device_id: deviceId,
+      session_id: sessionId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      device_info: trafficData.device_info,
+    };
+
+    sendData("http://localhost:8000/api/tracker/sessions", sessionData);
+  }
+
+  fetch(`http://localhost:8000/api/tracker/sessions/${deviceId}`)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Session not found");
+      }
+      // Update the existing session document
+      updateSession();
+    })
+    .catch(() => {
+      // Create a new session document
+      updateSession();
+    });
+
   // Function to parse the query string
   function getQueryStringParams(query: string): Record<string, string> {
     return query
@@ -170,12 +221,21 @@ document.addEventListener("DOMContentLoaded", function () {
     const a = document.createElement("a");
     a.href = referrer;
     const referrerHostname = a.hostname;
-    if (referrerHostname.indexOf("google") > -1) source = "Organic Search";
+    if (
+      referrerHostname.indexOf("google") > -1 ||
+      referrerHostname.indexOf("bing") > -1 ||
+      referrerHostname.indexOf("yahoo") > -1 ||
+      referrerHostname.indexOf("duckduckgo") > -1
+    )
+      source = "Organic Search";
     // add more serach engine
     // simplify the logic (exit early in the code)
     else if (
       referrerHostname.indexOf("facebook") > -1 ||
-      referrerHostname.indexOf("twitter") > -1
+      referrerHostname.indexOf("twitter") > -1 ||
+      referrerHostname.indexOf("instagram") > -1 ||
+      referrerHostname.indexOf("linkedin") > -1 ||
+      referrerHostname.indexOf("pinterest") > -1
       // capture more social media domains
     )
       source = "Social Media";
@@ -234,6 +294,11 @@ document.addEventListener("DOMContentLoaded", function () {
       keyword_ranking: {},
       landing_page_performance: {},
     },
+    device_info: {
+      device_model: detectDeviceType(),
+      os: navigator.platform,
+      userAgent: navigator.userAgent,
+    },
   };
 
   // Extended Features starts here
@@ -248,13 +313,6 @@ document.addEventListener("DOMContentLoaded", function () {
   ) {
     trafficData.social_media_profiles.push("Facebook");
   }
-
-  // Time Spent on the site
-  let startTime = Date.now();
-  window.addEventListener("beforeunload", function () {
-    trafficData.time_spent = (Date.now() - startTime) / 1000;
-    sendData();
-  });
 
   // Form interaction
   document.querySelectorAll("form").forEach(function (form) {
@@ -293,11 +351,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Clicks events
   document.addEventListener("click", function (event: MouseEvent) {
-    trafficData.click_events.push({
-      element: (event.target as HTMLElement).tagName,
-      id: (event.target as HTMLElement).id,
-      class: (event.target as HTMLElement).className,
-      time: new Date().toISOString(),
+    // trafficData.click_events.push({
+    //   element: (event.target as HTMLElement).tagName,
+    //   id: (event.target as HTMLElement).id,
+    //   class: (event.target as HTMLElement).className,
+    //   time: new Date().toISOString(),
+    // });
+
+    trafficData.click_events.forEach((clickEvent) => {
+      const clickData = {
+        session_id: sessionId,
+        coord: `${clickEvent.x},${clickEvent.y}`,
+        timestamp: clickEvent.time,
+      };
+      sendData("http://localhost:8000/api/tracker/clicks-and-heatmap", clickData);
     });
   });
 
@@ -337,20 +404,11 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Total sessions, unique visitors, returning visitors, new visitors
-
-  // one click handler and input handler
-  // one 
-
   function manageSessionData() {
     const sessionKey = "user_Session";
     const session = sessionStorage.getItem(sessionKey);
     const uniqueKey = "unique_visitors";
     const returningKey = "returning_visitors";
-
-    // use return instead of nested if else
-    // new session should be an event (create a table for session, session id(return id instead of active), userId, startTime and lastUpdatedAt)
-    // pass device id for every click events , heatmap [capture clicks : create a click table, store the]
-    // start session endpoint and update session endpoint
 
     if (!session) {
       sessionStorage.setItem(sessionKey, "active");
@@ -395,7 +453,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Page Views
   // session id and the page url and the reffer (create a table for it)
   // log the page view
-  trafficData.page_views++; 
+  trafficData.page_views++;
 
   // Form Analyses
   document.querySelectorAll("form").forEach(function (form) {
@@ -472,7 +530,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // Add the country name to the traffic data
         trafficData.geographic_location = data.countryName;
         // Send data to your server-side endpoint
-        sendData();
+        sendData(
+          "https://growthapp-backend-c991.onrender.com/api/data/track-traffic",
+          trafficData
+        );
       })
       .catch((error) => {
         console.error("Error:", error);
@@ -485,25 +546,85 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   getPageURL();
 
+  // send session data
+  const sessionData = {
+    id: sessionId,
+    site_id: siteId,
+    device_id: getDeviceId(),
+    session_id: sessionId,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    device_info: trafficData.device_info,
+  };
+  sendData("http://localhost:8000/api/tracker/sessions", sessionData);
+
+  // Send page view data
+  const pageViewData = {
+    session_id: sessionId,
+    url: trafficData.page_url,
+    referrer: document.referrer,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  sendData("http://localhost:8000/api/tracker/page-views", pageViewData);
+
+  // Send session event data
+  trafficData.form_interactions.forEach((formInteraction) => {
+    const sessionEventData = {
+      session_id: sessionId,
+      event_type: "input",
+      target: formInteraction.fields.join(","),
+      timestamp: new Date().toISOString(),
+      value: formInteraction.value || null,
+      x: null,
+      y: null,
+    };
+    sendData(
+      "http://localhost:8000/api/tracker//session-events",
+      sessionEventData
+    );
+  });
+
   // Function to send data to your server-side endpoint
-  function sendData() {
+  // function sendData() {
+  //   let userId: string | null = null;
+  //   fetch(
+  //     "https://growthapp-backend-c991.onrender.com/api/data/track-traffic",
+  //     // "http://localhost:3000/api/data/track-traffic",
+  //     {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         userId: userId,
+  //         trackingData: {
+  //           trafficData,
+  //         },
+  //       }),
+  //     }
+  //   )
+  //     .then((response) => response.json())
+  //     .then((data) => console.log("Success:", data))
+  //     .catch((error) => {
+  //       console.error("Error:", error);
+  //     });
+  // }
+
+  function sendData(url: string, data: any): void {
     let userId: string | null = null;
-    fetch(
-      "https://growthapp-backend-c991.onrender.com/api/data/track-traffic",
-      // "http://localhost:3000/api/data/track-traffic",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: userId,
+        trackingData: {
+          trafficData: data,
         },
-        body: JSON.stringify({
-          userId: userId,
-          trackingData: {
-            trafficData,
-          },
-        }),
-      }
-    )
+      }),
+    })
       .then((response) => response.json())
       .then((data) => console.log("Success:", data))
       .catch((error) => {
@@ -512,27 +633,27 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Check if Geolocation is supported
-  if (navigator.geolocation) {
-    // If supported, run the getCurrentPosition() method
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        // If successful, get the latitude and longitude of the user's device
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        // Call the getCountryName() function with the coordinates
-        getCountryName(lat, lon);
-      },
-      (error) => {
-        // If not successful, display an error message
-        console.error("Error:", error.message);
-        // Send data without the geographic location
-        sendData();
-      }
-    );
-  } else {
-    // If not supported, display a message to the user
-    console.log("Geolocation is not supported by this browser.");
-    // Send data without the geographic location
-    sendData();
-  }
+  // if (navigator.geolocation) {
+  //   // If supported, run the getCurrentPosition() method
+  //   navigator.geolocation.getCurrentPosition(
+  //     (position) => {
+  //       // If successful, get the latitude and longitude of the user's device
+  //       const lat = position.coords.latitude;
+  //       const lon = position.coords.longitude;
+  //       // Call the getCountryName() function with the coordinates
+  //       getCountryName(lat, lon);
+  //     },
+  //     (error) => {
+  //       // If not successful, display an error message
+  //       console.error("Error:", error.message);
+  //       // Send data without the geographic location
+  //       sendData();
+  //     }
+  //   );
+  // } else {
+  //   // If not supported, display a message to the user
+  //   console.log("Geolocation is not supported by this browser.");
+  //   // Send data without the geographic location
+  //   sendData();
+  // }
 });

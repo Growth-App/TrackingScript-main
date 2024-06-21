@@ -29,10 +29,12 @@
   },
   "homepage": "https://github.com/Growth-App/TrackingScript-main#readme",
   "devDependencies": {
+    "@types/uuid": "^10.0.0",
     "javascript-obfuscator": "^4.1.0",
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "terser": "^5.31.1"
+    "terser": "^5.31.1",
+    "uuid": "^10.0.0"
   }
 }
