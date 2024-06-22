@@ -34,6 +34,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "terser": "^5.31.1",
     "uuid": "^10.0.0"
   }
