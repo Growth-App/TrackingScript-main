@@ -1,8 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
-import { config } from "dotenv";
-// import { configDotenv } from "dotenv";
-config()
+import * as dotenv  from "dotenv";
+dotenv.config()
 
+const sessionUrl = process.env.SESSION_DATA_URL!
+const sessionEventUrl = process.env.SESSION_EVENT_URL!
+const clickEventUrl = process.env.CLICK_EVENT_URL!
+const pageViewURl = process.env.PAGE_VIEW_URL!
 
 
 interface FormInteraction {
@@ -389,7 +392,7 @@ async function sendSessionData(trafficData: any) {
   };
 
   try {
-    await sendData("http://localhost:8000/api/tracker/sessions", sessionData);
+    await sendData(sessionUrl, sessionData);
     console.log("Session data sent successfully");
   } catch (error) {
     console.error("Error sending session data:", error);
@@ -412,7 +415,7 @@ async function sendClickData(clicks: ClickEvent[]) {
         };
 
         await sendData(
-          "http://localhost:8000/api/tracker/clicks-and-heatmap",
+          clickEventUrl,
           clickData
         );
       })
@@ -438,7 +441,7 @@ async function sendPageViewData(pageViews: any[]) {
         };
 
         await sendData(
-          "http://localhost:8000/api/tracker/page-views",
+          pageViewURl,
           pageViewData
         );
       })
@@ -464,7 +467,7 @@ async function sendSessionEventData(events: any[]) {
         };
 
         await sendData(
-          "http://localhost:8000/api/tracker/session-events",
+          sessionEventUrl,
           eventData
         );
       })

@@ -30,6 +30,7 @@
   "homepage": "https://github.com/Growth-App/TrackingScript-main#readme",
   "devDependencies": {
     "@types/uuid": "^10.0.0",
+    "dotenv-webpack": "^8.1.0",
     "javascript-obfuscator": "^4.1.0",
     "typescript": "^5.4.5"
   },
