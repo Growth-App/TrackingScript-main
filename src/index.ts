@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import {
   type ClickEvent,
   type DeviceInfo,
-  type TrafficData,
+  type SessionData,
 } from "./types";
 
 const sessionUrl = process.env.SESSION_DATA_URL!
@@ -10,12 +10,8 @@ const sessionEventUrl = process.env.SESSION_EVENT_URL!
 const clickEventUrl = process.env.CLICK_EVENT_URL!
 const pageViewURl = process.env.PAGE_VIEW_URL!
 
-let trafficData: TrafficData | null = null;
-let currentPageStartTime: number = Date.now();
-
-// Helper function to generate a unique ID
-function generateUniqueId(): string {
-  return Math.random().toString(36).substring(2, 15);
+function getSiteId(): string {
+  return window?.GROWTH_APP_SITE_ID || Math.random().toString(36).substring(2, 15);
 }
 
 function getDeviceId() {
@@ -26,9 +22,6 @@ function getDeviceId() {
   }
   return deviceId;
 }
-
-const deviceId = getDeviceId()
-const siteId = generateUniqueId()
 
 // Helper function to get device info
 function getDeviceInfo(): DeviceInfo {
@@ -61,16 +54,16 @@ function getUTMParams() {
 
 
 // Initialize session data if not already present
-function initializeSessionData() {
+function initSession(siteId: string, deviceId: string): SessionData {
   const storedSessionId = localStorage.getItem("sessionId");
   const isReturningVisitor = !!storedSessionId;
   const utmParams = getUTMParams();
   const deviceInfo = getDeviceInfo();
 
-  trafficData = {
-    sessionId: storedSessionId || generateUniqueId(),
-    siteId:siteId,
-    deviceId:deviceId,
+  const sessionData: SessionData = {
+    siteId,
+    deviceId,
+    sessionId: storedSessionId || getSiteId(),
     source: document.referrer,
     utm_source: utmParams.utm_source,
     utm_campaign: utmParams.utm_campaign,
@@ -107,150 +100,12 @@ function initializeSessionData() {
   };
 
   if (!isReturningVisitor) {
-    localStorage.setItem("sessionId", trafficData.sessionId);
+    localStorage.setItem("sessionId", sessionData.sessionId);
   }
+
+  return sessionData;
 }
 
-// Ensure sessionData is initialized
-if (!trafficData) {
-  initializeSessionData();
-}
-
-// Event listener for page load
-window.addEventListener("load", () => {
-  if (trafficData) {
-    trafficData.page_views++;
-    currentPageStartTime = Date.now();
-  }
-});
-
-// Event listener for clicks
-document.addEventListener("click", (event) => {
-  if (trafficData) {
-    trafficData.click_events.push({
-      sessionId:trafficData.sessionId,
-      element: (event.target as HTMLElement).tagName,
-      x: event.clientX,
-      y: event.clientY,
-      timestamp: Date.now(),
-    });
-  }
-});
-
-// Event listener for form submissions
-document.querySelectorAll("form").forEach((form) => {
-  form.addEventListener("submit", (event) => {
-    if (trafficData) {
-      const formId = (event.target as HTMLFormElement).id || "unknown";
-      let formInteraction = trafficData.form_interactions.find(
-        (fi) => fi.formId === formId
-      );
-      if (!formInteraction) {
-        formInteraction = {
-          formId: formId,
-          fieldInteractions: [],
-          submitted: false,
-        };
-        trafficData.form_interactions.push(formInteraction);
-      }
-      formInteraction.submitted = true;
-    }
-  });
-
-  form.addEventListener(
-    "focus",
-    (event) => {
-      if (trafficData) {
-        const formId = (event.target as HTMLFormElement).id || "unknown";
-        let formInteraction = trafficData.form_interactions.find(
-          (fi) => fi.formId === formId
-        );
-        if (!formInteraction) {
-          formInteraction = {
-            formId: formId,
-            fieldInteractions: [],
-            submitted: false,
-          };
-          trafficData.form_interactions.push(formInteraction);
-        }
-        formInteraction.fieldInteractions.push({
-          fieldName: (event.target as HTMLInputElement).name,
-          timestamp: Date.now(),
-        });
-      }
-    },
-    true
-  );
-});
-
-// Scroll depth calculation
-window.addEventListener("scroll", function () {
-  if (trafficData) {
-    let scrollHeight =
-      document.documentElement.scrollHeight - window.innerHeight;
-    let scrollPosition = window.scrollY || document.documentElement.scrollTop;
-    trafficData.scroll_depth = Math.max(
-      trafficData.scroll_depth,
-      (scrollPosition / scrollHeight) * 100
-    );
-  }
-});
-
-// Function to update session duration and time on page
-function updateSessionMetrics() {
-  if (trafficData) {
-    const now = Date.now();
-    trafficData.session_duration = (now - trafficData.startTime) / 1000; // duration in seconds
-    trafficData.time_on_page = (now - currentPageStartTime) / 1000;
-  }
-}
-
-// Send data to the server periodically
-setInterval(() => {
-  updateSessionMetrics();
-  if (trafficData) {
-    sendSessionData({
-      siteId: siteId,
-      deviceId: deviceId,
-      sessionId: trafficData.sessionId,
-      device_Info: trafficData.device_info,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-
-    sendClickData(trafficData.click_events);
-
-    sendPageViewData([
-      {
-        sessionId: trafficData.sessionId,
-        url: trafficData.page_url,
-        referrer: trafficData.source,
-        created_at: new Date().toISOString(),
-      },
-    ]);
-
-    // Clear mouse movements to avoid excessive data
-    trafficData.mouseMovements = [];
-  }
-}, 7000);
-
-// Capture heat map data (mouse movements)
-document.addEventListener("mousemove", (event) => {
-  if (trafficData) {
-    trafficData.mouseMovements.push({
-      x: event.clientX,
-      y: event.clientY,
-      timestamp: Date.now(),
-    });
-  }
-});
-
-// Update session duration before the user leaves the page
-window.addEventListener("beforeunload", () => {
-  updateSessionMetrics();
-});
-
-// an helper function
 async function sendData(url: string, data: any): Promise<any> {
   try {
     const response = await fetch(url, {
@@ -271,48 +126,20 @@ async function sendData(url: string, data: any): Promise<any> {
   }
 }
 
-// send session data
-async function sendSessionData(trafficData: any) {
-  const sessionData = {
-    siteid: trafficData.site_id,
-    deviceId: trafficData,
-    sessionId: trafficData.sessionId,
+async function sendSessionData(sessionData: SessionData) {
+  const data = {
+    siteid: sessionData.siteId,
+    deviceId: sessionData.deviceId,
+    sessionId: sessionData.sessionId,
     createdAt: new Date().toISOString(),
-    deviceInfo: trafficData.device_info,
+    deviceInfo: sessionData.device_info,
   };
 
   try {
-    await sendData(sessionUrl, sessionData);
+    await sendData(sessionUrl, data);
     console.log("Session data sent successfully");
   } catch (error) {
     console.error("Error sending session data:", error);
-  }
-}
-
-async function sendClickData(clicks: ClickEvent[]) {
-  // let trafficData:TrafficData | null = null
-  try {
-    if (!trafficData) {
-      throw new Error("Traffic data is not initialized.");
-    }
-
-    await Promise.all(
-      clicks.map(async (click) => {
-        const clickData = {
-          session_id: click.sessionId, // Get sessionId from trafficData
-          coord: { x: click.x, y: click.y },
-          timestamp: click.timestamp,
-        };
-
-        await sendData(
-          clickEventUrl,
-          clickData
-        );
-      })
-    );
-    console.log("Click data sent successfully");
-  } catch (error) {
-    console.error("Error sending click data:", error);
   }
 }
 
@@ -340,40 +167,101 @@ async function sendPageViewData(pageViews: any[]) {
   }
 }
 
-async function sendSessionEventData(events: any[]) {
+async function sendClickEvents(sessionData: SessionData) {
   try {
-    await Promise.all(
-      events.map(async (event) => {
-        const eventData = {
-          session_id: event.sessionId,
-          event_type: event.event_type,
-          target: event.target,
-          timestamp: event.timestamp,
-          value: event.value || null,
-          x: event.x || null,
-          y: event.y || null,
-        };
-
-        await sendData(
-          sessionEventUrl,
-          eventData
-        );
-      })
-    );
+    // TODO: Inlcude session id in the payload
+    await sendData(sessionEventUrl, sessionData.click_events)
     console.log("Session event data sent successfully");
   } catch (error) {
     console.error("Error sending session event data:", error);
   }
 }
 
-// Display metrics for debugging
-function displayMetrics() {
-  if (trafficData) {
-    console.log("Session Data:", trafficData);
+function startGrowthAppTracker() {
+  const deviceId = getDeviceId();
+  const siteId = getSiteId();
+  const sessionData = initSession(siteId, deviceId);
+
+  // Record clicks
+  document.addEventListener("click", (event) => {
+    sessionData.click_events.push({
+      sessionId: sessionData.sessionId,
+      element: (event.target as HTMLElement).tagName,
+      x: event.clientX,
+      y: event.clientY,
+      timestamp: Date.now(),
+    });
+  });
+
+  // Record mouse movements
+  document.addEventListener("mousemove", (event) => {
+    sessionData.mouseMovements.push({
+      x: event.clientX,
+      y: event.clientY,
+      timestamp: Date.now(),
+    });
+  });
+
+  // Record scroll depth
+  window.addEventListener("scroll", function () {
+    let scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+    let scrollPosition = window.scrollY || document.documentElement.scrollTop;
+    sessionData.scroll_depth = Math.max(sessionData.scroll_depth, (scrollPosition / scrollHeight) * 100);
+  });
+
+  // Record form interactions
+  document.querySelectorAll("form").forEach((form) => {
+    // Record form submissions
+    form.addEventListener("submit", (event) => {
+      const formId = (event.target as HTMLFormElement).id || "unknown";
+      let formInteraction = sessionData.form_interactions.find(({ formId }) => formId == formId);
+
+      if (!formInteraction) {
+        formInteraction = {
+          formId: formId,
+          fieldInteractions: [],
+          submitted: true,
+        };
+      }
+
+      formInteraction.submitted = true;
+      sessionData.form_interactions.push(formInteraction);
+    });
+
+    // Record form field interactions
+    form.addEventListener("focus", (event) => {
+      const formId = (event.target as HTMLFormElement).id || "unknown";
+      let formInteraction = sessionData.form_interactions.find(({ formId }) => formId == formId);
+
+      if (!formInteraction) {
+        formInteraction = {
+          formId: formId,
+          fieldInteractions: [],
+          submitted: false,
+        };
+
+        sessionData.form_interactions.push(formInteraction);
+      }
+
+      formInteraction.fieldInteractions.push({
+        fieldName: (event.target as HTMLInputElement).name,
+        timestamp: Date.now(),
+      });
+    }, true);
+  });
+
+  // For debugging
+  if (!process.env.NODE_ENV?.includes("prod")) {
+    setInterval(() => console.log({ sessionData }), 10000);
   }
 }
 
-// Periodically display metrics for debugging
-if (!process.env.NODE_ENV?.includes("prod")) {
-  setInterval(displayMetrics, 10000);
+window.startGrowthAppTracker = startGrowthAppTracker;
+
+// Initialize WP plugin
+if (growth_app_args?.WP) {
+  window.WP = true
+  window.GROWTH_APP_SITE_ID = growth_app_args.GROWTH_APP_SITE_ID;
+
+  startGrowthAppTracker()
 }
