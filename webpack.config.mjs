@@ -1,9 +1,15 @@
+import path from "path";
 import Dotenv from "dotenv-webpack";
 import TerserPlugin from "terser-webpack-plugin";
-import WebpackObfuscator from 'webpack-obfuscator';
+import WebpackObfuscator from "webpack-obfuscator";
+import CopyWebpackPlugin from "copy-webpack-plugin";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default (env, argv) => {
-  const isProduction = argv.mode === 'production';
+  const isProduction = argv.mode === "production";
 
   return {
     entry: "./src/index.ts",
@@ -29,10 +35,18 @@ export default (env, argv) => {
         isProduction ? [
           new WebpackObfuscator(
             { rotateStringArray: true },
-            ['excluded_bundle_name.js']
+            ["excluded_bundle_name.js"]
           )
         ] : []
       ),
+      new CopyWebpackPlugin({
+        patterns: [
+          {
+            from: "./dist/main.js",
+            to: path.resolve(__dirname, "wp-plugin", "js")
+          },
+        ],
+      }),
     ],
   }
 };

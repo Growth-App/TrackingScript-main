@@ -1,7 +1,5 @@
 node_modules
 index.html
-tracker-v1
-tracker-v2
 dist
 new.ts
 .env
