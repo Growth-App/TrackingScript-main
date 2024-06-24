@@ -2,12 +2,12 @@
   "name": "trackingscript-main",
   "version": "1.0.0",
   "description": "TypeScript version for the tracking scripts ",
-  "main": "index.js",
+  "main": "dist/main.js",
+  "type": "module",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "watch": "tsc --watch",
-    "obfuscate": "javascript-obfuscator dist/index.js --output dist/obfuscated"
+    "build": "webpack --mode development --config webpack.config.mjs",
+    "build:prod": "webpack --mode production --config webpack.config.mjs",
+    "start": "webpack --mode development --config webpack.config.mjs --watch"
   },
   "repository": {
     "type": "git",
@@ -29,14 +29,19 @@
   },
   "homepage": "https://github.com/Growth-App/TrackingScript-main#readme",
   "devDependencies": {
+    "@types/node": "^20.14.8",
     "@types/uuid": "^10.0.0",
+    "dotenv": "^16.4.5",
     "dotenv-webpack": "^8.1.0",
-    "javascript-obfuscator": "^4.1.0",
-    "typescript": "^5.4.5"
+    "terser-webpack-plugin": "^5.3.10",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.5.2",
+    "user-agent-data-types": "^0.4.2",
+    "webpack": "^5.92.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-obfuscator": "^3.5.1"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "terser": "^5.31.1",
     "uuid": "^10.0.0"
   }
 }
