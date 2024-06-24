@@ -1,158 +1,83 @@
-interface TrafficData {
-  source: string;
-  utm_source: string;
-  utm_campaign: string;
-  utm_medium: string;
-  device_type: string;
-  browser_type: string;
-  operating_system: string;
-  page_url: string;
-  social_media_profiles: string[];
-  time_spent: number;
-  form_interactions: FormInteraction[];
-  click_events: ClickEvent[];
-  scroll_depth: number;
-  js_errors: JsError[];
-  heatmap_data: Record<string, number>;
-  geographic_location?: string;
-  organic_keywords?: string;
-  total_sessions: number;
-  unique_visitors: number;
-  returning_visitors: number;
-  new_visitors: number;
-  session_duration: number;
-  time_on_page: number;
-  page_views: number;
-  session_recording: any[];
-  form_analyses: FormAnalysis[];
-  funnel_analyses: FunnelAnalysis[];
-  ecommerce_metrics: EcommerceMetrics;
+import { v4 as uuidv4 } from "uuid";
+import {
+  type ClickEvent,
+  type DeviceInfo,
+  type TrafficData,
+} from "./types";
+
+const sessionUrl = process.env.SESSION_DATA_URL!
+const sessionEventUrl = process.env.SESSION_EVENT_URL!
+const clickEventUrl = process.env.CLICK_EVENT_URL!
+const pageViewURl = process.env.PAGE_VIEW_URL!
+
+let trafficData: TrafficData | null = null;
+let currentPageStartTime: number = Date.now();
+
+// Helper function to generate a unique ID
+function generateUniqueId(): string {
+  return Math.random().toString(36).substring(2, 15);
 }
 
-interface FormInteraction {
-  form_id: string;
-  fields: string[];
-  time_spent: number;
-  submission_status: boolean;
-}
-
-interface ClickEvent {
-  element: string;
-  id: string;
-  class: string;
-  time: string;
-}
-
-interface JsError {
-  message: string;
-  source: String;
-  lineno: number;
-  colno: number;
-  time: string;
-}
-
-interface HeatmapData {
-  [key: string]: number;
-}
-
-interface FormAnalysis {
-  form_id: string;
-  completion_rate: number;
-  abandonment_rate: number;
-}
-
-interface FunnelAnalysis {
-  stage: string;
-  completion_rate: number;
-}
-
-interface EcommerceMetrics {
-  product_views: number;
-  cart_additions: number;
-  purchase_completions: number;
-}
-
-document.addEventListener("DOMContentLoaded", function () {
-  // Function to parse the query string
-  function getQueryStringParams(query: string): Record<string, string> {
-    return query
-      ? (/^[?#]/.test(query) ? query.slice(1) : query)
-          .split("&")
-          .reduce((params: Record<string, string>, param: string) => {
-            let [key, value] = param.split("=");
-            params[key] = value
-              ? decodeURIComponent(value.replace(/\+/g, " "))
-              : "";
-            return params;
-          }, {})
-      : {};
+function getDeviceId() {
+  let deviceId = localStorage.getItem("device_id");
+  if (!deviceId) {
+    deviceId = uuidv4();
+    localStorage.setItem("device_id", deviceId);
   }
+  return deviceId;
+}
 
-  function detectDeviceType(): string {
-    const ua = navigator.userAgent;
-    if (/tablet|ipad|playbook|silk/i.test(ua)) {
-      return "tablet";
-    } else if (/mobile|iphone|ipod|iemobile|blackberry|android/i.test(ua)) {
-      return "mobile";
-    }
-    return "desktop";
-  }
+const deviceId = getDeviceId()
+const siteId = generateUniqueId()
 
-  let source = "Direct";
-  let referrer = document.referrer;
+// Helper function to get device info
+function getDeviceInfo(): DeviceInfo {
+  const userAgent = navigator.userAgent;
+  const platform = navigator?.platform || navigator?.userAgentData?.platform || "";
+  const os = /Windows|Mac|Linux|iPhone|Android/.exec(platform) || ["Unknown"];
+  const browser = /Chrome|Firefox|Safari|Edge|Opera/.exec(userAgent) || [
+    "Unknown",
+  ];
+  const deviceType = /Mobile|Tablet|iPad/.exec(userAgent)
+    ? "Mobile"
+    : "Desktop";
 
-  const urlParams = getQueryStringParams(window.location.search);
-  const utmSource = urlParams.utm_source || "not set";
-  const utmCampaign = urlParams.utm_campaign || "not set";
-  const utmMedium = urlParams.utm_medium || "not set";
+  return {
+    deviceType: deviceType,
+    browserType: browser[0],
+    operatingSystem: os[0],
+  };
+}
 
-  // Detect device type
-  const deviceType = detectDeviceType();
+// Helper function to get UTM parameters
+function getUTMParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    utm_source: params.get("utm_source") || "",
+    utm_campaign: params.get("utm_campaign") || "",
+    utm_medium: params.get("utm_medium") || "",
+  };
+}
 
-  // Browser type and version
-  const browserName =
-    navigator.userAgent.match(
-      /(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i
-    ) || [];
 
-  let browserType: string;
+// Initialize session data if not already present
+function initializeSessionData() {
+  const storedSessionId = localStorage.getItem("sessionId");
+  const isReturningVisitor = !!storedSessionId;
+  const utmParams = getUTMParams();
+  const deviceInfo = getDeviceInfo();
 
-  if (/trident/i.test(browserName[1])) {
-    browserType =
-      "IE " + (/\brv[ :]+(\d+)/g.exec(navigator.userAgent) || [])[1];
-  } else if (browserName[1] === "Chrome") {
-    let temp = navigator.userAgent.match(/\b(OPR|Edge)\/(\d+)/);
-    if (temp != null)
-      browserType = temp.slice(1).join(" ").replace("OPR", "Opera");
-    else browserType = browserName.join(" ");
-  } else browserType = browserName.join(" ");
-
-  // Operating system
-  const os = navigator.platform;
-
-  if (referrer) {
-    const a = document.createElement("a");
-    a.href = referrer;
-    const referrerHostname = a.hostname;
-    if (referrerHostname.indexOf("google") > -1) source = "Organic Search";
-    else if (
-      referrerHostname.indexOf("facebook") > -1 ||
-      referrerHostname.indexOf("twitter") > -1
-    )
-      source = "Social Media";
-    else source = "Referral (" + referrerHostname + ")";
-  }
-
-  // Prepare data to be sent
-  const trafficData: TrafficData = {
-    source: source,
-    utm_source: utmSource,
-    utm_campaign: utmCampaign,
-    utm_medium: utmMedium,
-    device_type: deviceType,
-    browser_type: browserType,
-    operating_system: os,
-    // geographic_location will be determined server-side based on IP address
+  trafficData = {
+    sessionId: storedSessionId || generateUniqueId(),
+    siteId:siteId,
+    deviceId:deviceId,
+    source: document.referrer,
+    utm_source: utmParams.utm_source,
+    utm_campaign: utmParams.utm_campaign,
+    utm_medium: utmParams.utm_medium,
+    device_type: deviceInfo.deviceType,
+    browser_type: deviceInfo.browserType,
+    operating_system: deviceInfo.operatingSystem,
     page_url: window.location.href,
     social_media_profiles: [],
     time_spent: 0,
@@ -161,303 +86,294 @@ document.addEventListener("DOMContentLoaded", function () {
     scroll_depth: 0,
     js_errors: [],
     heatmap_data: {},
-    total_sessions: 0,
-    unique_visitors: 0,
-    returning_visitors: 0,
-    new_visitors: 0,
+    total_sessions: isReturningVisitor ? 0 : 1,
+    unique_visitors: isReturningVisitor ? 0 : 1,
+    returning_visitors: isReturningVisitor ? 1 : 0,
+    new_visitors: isReturningVisitor ? 0 : 1,
     session_duration: 0,
     time_on_page: 0,
-    page_views: 0,
+    page_views: 1,
     session_recording: [],
     form_analyses: [],
     funnel_analyses: [],
     ecommerce_metrics: {
-      product_views: 0,
-      cart_additions: 0,
-      purchase_completions: 0,
+      productViews: 0,
+      cartAdditions: 0,
+      purchaseCompletions: 0,
     },
+    device_info: deviceInfo,
+    startTime: 0,
+    mouseMovements: [],
   };
 
-  // Extended Features starts here
-
-  // Social Media Profiles (LinkedIn and Facebook)
-  if (navigator.userAgent.indexOf("LinkedIn") !== -1) {
-    trafficData.social_media_profiles.push("LinkedIn");
+  if (!isReturningVisitor) {
+    localStorage.setItem("sessionId", trafficData.sessionId);
   }
-  if (
-    navigator.userAgent.indexOf("FBAN") !== -1 ||
-    navigator.userAgent.indexOf("FBAV") !== -1
-  ) {
-    trafficData.social_media_profiles.push("Facebook");
+}
+
+// Ensure sessionData is initialized
+if (!trafficData) {
+  initializeSessionData();
+}
+
+// Event listener for page load
+window.addEventListener("load", () => {
+  if (trafficData) {
+    trafficData.page_views++;
+    currentPageStartTime = Date.now();
   }
+});
 
-  // Time Spent on the site
-  let startTime = Date.now();
-  window.addEventListener("beforeunload", function () {
-    trafficData.time_spent = (Date.now() - startTime) / 1000;
-    sendData();
-  });
-
-  // Form interaction
-  document.querySelectorAll("form").forEach(function (form) {
-    let formData: FormInteraction = {
-      form_id: form.id,
-      fields: [],
-      time_spent: 0,
-      submission_status: false,
-    };
-
-    let formStartTime: number | null = null;
-
-    form.addEventListener(
-      "focus",
-      function () {
-        formStartTime = Date.now();
-      },
-      true
-    );
-
-    form.addEventListener("blur", function (event: FocusEvent) {
-      const target = event.target as HTMLInputElement | HTMLTextAreaElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-        formData.fields.push(target.name);
-      }
-    });
-
-    form.addEventListener("submit", function () {
-      if (formStartTime !== null) {
-        formData.time_spent = (Date.now() - formStartTime) / 1000;
-      }
-      formData.submission_status = true;
-      trafficData.form_interactions.push(formData);
-    });
-  });
-
-  // Clicks events
-  document.addEventListener("click", function (event: MouseEvent) {
+// Event listener for clicks
+document.addEventListener("click", (event) => {
+  if (trafficData) {
     trafficData.click_events.push({
+      sessionId:trafficData.sessionId,
       element: (event.target as HTMLElement).tagName,
-      id: (event.target as HTMLElement).id,
-      class: (event.target as HTMLElement).className,
-      time: new Date().toISOString(),
+      x: event.clientX,
+      y: event.clientY,
+      timestamp: Date.now(),
     });
+  }
+});
+
+// Event listener for form submissions
+document.querySelectorAll("form").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    if (trafficData) {
+      const formId = (event.target as HTMLFormElement).id || "unknown";
+      let formInteraction = trafficData.form_interactions.find(
+        (fi) => fi.formId === formId
+      );
+      if (!formInteraction) {
+        formInteraction = {
+          formId: formId,
+          fieldInteractions: [],
+          submitted: false,
+        };
+        trafficData.form_interactions.push(formInteraction);
+      }
+      formInteraction.submitted = true;
+    }
   });
 
-  // Scroll depth
-  window.addEventListener("scroll", function () {
+  form.addEventListener(
+    "focus",
+    (event) => {
+      if (trafficData) {
+        const formId = (event.target as HTMLFormElement).id || "unknown";
+        let formInteraction = trafficData.form_interactions.find(
+          (fi) => fi.formId === formId
+        );
+        if (!formInteraction) {
+          formInteraction = {
+            formId: formId,
+            fieldInteractions: [],
+            submitted: false,
+          };
+          trafficData.form_interactions.push(formInteraction);
+        }
+        formInteraction.fieldInteractions.push({
+          fieldName: (event.target as HTMLInputElement).name,
+          timestamp: Date.now(),
+        });
+      }
+    },
+    true
+  );
+});
+
+// Scroll depth calculation
+window.addEventListener("scroll", function () {
+  if (trafficData) {
     let scrollHeight =
-      document.documentElement.scrollHeight - this.window.innerHeight;
-    let scrollPosition =
-      window.scrollY || this.document.documentElement.scrollTop;
+      document.documentElement.scrollHeight - window.innerHeight;
+    let scrollPosition = window.scrollY || document.documentElement.scrollTop;
     trafficData.scroll_depth = Math.max(
       trafficData.scroll_depth,
       (scrollPosition / scrollHeight) * 100
     );
-  });
-
-  // Javascript Errors
-  window.addEventListener("error", function (event: ErrorEvent) {
-    trafficData.js_errors.push({
-      message: event.message,
-      source: event.filename,
-      lineno: event.lineno,
-      colno: event.colno,
-      time: new Date().toISOString(),
-    });
-  });
-
-  // Heatmap Data
-  document.addEventListener("click", function (event: MouseEvent) {
-    let x = event.clientX;
-    let y = event.clientY;
-    let key = `${x},${y}`;
-    if (!trafficData.heatmap_data[key]) {
-      trafficData.heatmap_data[key] = 0;
-    }
-
-    trafficData.heatmap_data[key]++;
-  });
-
-  // Session Tracking
-  trafficData.total_sessions++;
-  const visitorId = localStorage.getItem("visitorId");
-  if (!visitorId) {
-    localStorage.setItem("visitorId", Date.now().toString());
-    trafficData.unique_visitors++;
-    trafficData.new_visitors++;
-  } else {
-    trafficData.returning_visitors++;
-  }
-
-  // Session DUration
-  setInterval(() => {
-    trafficData.session_duration++;
-  }, 1000);
-
-  // Time on Page
-  let pageStartTime = Date.now();
-  window.addEventListener("beforeunload", function () {
-    trafficData.time_on_page = (Date.now() - pageStartTime) / 1000;
-  });
-
-  // Page Views
-  trafficData.page_views++;
-
-  // Form Analyses
-  document.querySelectorAll("form").forEach(function (form) {
-    const formAnalysis: FormAnalysis = {
-      form_id: form.id,
-      completion_rate: 0,
-      abandonment_rate: 0,
-    };
-
-    form.addEventListener("submit", function () {
-      formAnalysis.completion_rate++;
-      trafficData.form_analyses.push(formAnalysis);
-    });
-
-    form.addEventListener("reset", function () {
-      formAnalysis.abandonment_rate++;
-      trafficData.form_analyses.push(formAnalysis);
-    });
-  });
-
-  // Conversion Tracking: Funnel Analysis
-  const funnelStages = ["Cart", "Billing", "Payment"];
-  const stageCounts: Record<string, number> = {};
-  let prevStage: string | null = null;
-
-  funnelStages.forEach((stage, index) => {
-    const completion_rate =
-      index === 0
-        ? 1
-        : stageCounts[stage] / stageCounts[funnelStages[index - 1]];
-    trafficData.funnel_analyses.push({
-      stage: stage,
-      completion_rate: completion_rate,
-    });
-
-    prevStage = stage;
-  });
-
-  // Conversion Tracking: Ecommerce tracking
-  trafficData.ecommerce_metrics = {
-    product_views: 0,
-    cart_additions: 0,
-    purchase_completions: 0,
-  };
-
-  document.querySelectorAll(".product-view").forEach(function (product) {
-    product.addEventListener("click", function () {
-      trafficData.ecommerce_metrics.product_views++;
-    });
-  });
-
-  document.querySelectorAll(".add-to-cart").forEach(function (button) {
-    button.addEventListener("click", function () {
-      trafficData.ecommerce_metrics.cart_additions++;
-    });
-  });
-
-  document.querySelectorAll(".complete-purchase").forEach(function (button) {
-    button.addEventListener("click", function () {
-      trafficData.ecommerce_metrics.purchase_completions++;
-    });
-  });
-
-  // Extended features ends here
-  /****************************************/
-
-  // Function to get the country name from the coordinates
-  function getCountryName(lat: number, lon: number): void {
-    const apiKey = "xekhai";
-    const url = `http://api.geonames.org/countryCodeJSON?lat=${lat}&lng=${lon}&username=${apiKey}`;
-    fetch(url)
-      .then((response) => response.json())
-      .then((data) => {
-        // Add the country name to the traffic data
-        trafficData.geographic_location = data.countryName;
-        // Send data to your server-side endpoint
-        sendData();
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-      });
-  }
-  //     // Function to get the country and city from IP address using Geolocator
-  //   function getCountryAndCity() {
-  //     // Use geolocator.locateByIP to get location information
-  //     geolocator.locateByIP()
-  //       .then((location) => {
-  //         // Extract country and city information from the location data
-  //         const country = location.address.country || "Unknown";
-  //         const city = location.address.city || "Unknown";
-  //         // Add the country and city to the traffic data
-  //         trafficData.geographic_location = ${city}, ${country};
-  //         // Send data to your server-side endpoint
-  //         sendData();
-  //       })
-  //       .catch((error) => {
-  //         console.error("Error:", error);
-  //         // Send data without the geographic location
-  //         sendData();
-  //       });
-  //   }
-  //   getCountryAndCity();
-  // Function to get the page URL
-  function getPageURL() {
-    // Add the page URL to the traffic data
-    trafficData.page_url = window.location.href;
-  }
-  getPageURL();
-
-  // Function to send data to your server-side endpoint
-  function sendData() {
-    let userId: string | null = null;
-    fetch(
-      "https://growthapp-backend-c991.onrender.com/api/data/track-traffic",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: userId,
-          trackingData: {
-            trafficData,
-          },
-        }),
-      }
-    )
-      .then((response) => response.json())
-      .then((data) => console.log("Success:", data))
-      .catch((error) => {
-        console.error("Error:", error);
-      });
-  }
-
-  // Check if Geolocation is supported
-  if (navigator.geolocation) {
-    // If supported, run the getCurrentPosition() method
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        // If successful, get the latitude and longitude of the user's device
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        // Call the getCountryName() function with the coordinates
-        getCountryName(lat, lon);
-      },
-      (error) => {
-        // If not successful, display an error message
-        console.error("Error:", error.message);
-        // Send data without the geographic location
-        sendData();
-      }
-    );
-  } else {
-    // If not supported, display a message to the user
-    console.log("Geolocation is not supported by this browser.");
-    // Send data without the geographic location
-    sendData();
   }
 });
+
+// Function to update session duration and time on page
+function updateSessionMetrics() {
+  if (trafficData) {
+    const now = Date.now();
+    trafficData.session_duration = (now - trafficData.startTime) / 1000; // duration in seconds
+    trafficData.time_on_page = (now - currentPageStartTime) / 1000;
+  }
+}
+
+// Send data to the server periodically
+setInterval(() => {
+  updateSessionMetrics();
+  if (trafficData) {
+    sendSessionData({
+      siteId: siteId,
+      deviceId: deviceId,
+      sessionId: trafficData.sessionId,
+      device_Info: trafficData.device_info,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    sendClickData(trafficData.click_events);
+
+    sendPageViewData([
+      {
+        sessionId: trafficData.sessionId,
+        url: trafficData.page_url,
+        referrer: trafficData.source,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    // Clear mouse movements to avoid excessive data
+    trafficData.mouseMovements = [];
+  }
+}, 7000);
+
+// Capture heat map data (mouse movements)
+document.addEventListener("mousemove", (event) => {
+  if (trafficData) {
+    trafficData.mouseMovements.push({
+      x: event.clientX,
+      y: event.clientY,
+      timestamp: Date.now(),
+    });
+  }
+});
+
+// Update session duration before the user leaves the page
+window.addEventListener("beforeunload", () => {
+  updateSessionMetrics();
+});
+
+// an helper function
+async function sendData(url: string, data: any): Promise<any> {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        trafficData: data,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status:${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+// send session data
+async function sendSessionData(trafficData: any) {
+  const sessionData = {
+    siteid: trafficData.site_id,
+    deviceId: trafficData,
+    sessionId: trafficData.sessionId,
+    createdAt: new Date().toISOString(),
+    deviceInfo: trafficData.device_info,
+  };
+
+  try {
+    await sendData(sessionUrl, sessionData);
+    console.log("Session data sent successfully");
+  } catch (error) {
+    console.error("Error sending session data:", error);
+  }
+}
+
+async function sendClickData(clicks: ClickEvent[]) {
+  // let trafficData:TrafficData | null = null
+  try {
+    if (!trafficData) {
+      throw new Error("Traffic data is not initialized.");
+    }
+
+    await Promise.all(
+      clicks.map(async (click) => {
+        const clickData = {
+          session_id: click.sessionId, // Get sessionId from trafficData
+          coord: { x: click.x, y: click.y },
+          timestamp: click.timestamp,
+        };
+
+        await sendData(
+          clickEventUrl,
+          clickData
+        );
+      })
+    );
+    console.log("Click data sent successfully");
+  } catch (error) {
+    console.error("Error sending click data:", error);
+  }
+}
+
+async function sendPageViewData(pageViews: any[]) {
+  try {
+    await Promise.all(
+      pageViews.map(async (pageView) => {
+        const pageViewData = {
+          session_id: pageView.sessionId,
+          url: pageView.url,
+          referrer: pageView.referrer,
+          created_at: pageView.created_at,
+          updated_at: new Date().toISOString(),
+        };
+
+        await sendData(
+          pageViewURl,
+          pageViewData
+        );
+      })
+    );
+    console.log("Page view data sent successfully");
+  } catch (error) {
+    console.error("Error sending page view data:", error);
+  }
+}
+
+async function sendSessionEventData(events: any[]) {
+  try {
+    await Promise.all(
+      events.map(async (event) => {
+        const eventData = {
+          session_id: event.sessionId,
+          event_type: event.event_type,
+          target: event.target,
+          timestamp: event.timestamp,
+          value: event.value || null,
+          x: event.x || null,
+          y: event.y || null,
+        };
+
+        await sendData(
+          sessionEventUrl,
+          eventData
+        );
+      })
+    );
+    console.log("Session event data sent successfully");
+  } catch (error) {
+    console.error("Error sending session event data:", error);
+  }
+}
+
+// Display metrics for debugging
+function displayMetrics() {
+  if (trafficData) {
+    console.log("Session Data:", trafficData);
+  }
+}
+
+// Periodically display metrics for debugging
+if (!process.env.NODE_ENV?.includes("prod")) {
+  setInterval(displayMetrics, 10000);
+}
