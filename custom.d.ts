@@ -13,7 +13,7 @@ interface GrothAppArgs {
 };
 
 interface Window  extends GrothAppArgs {
-  startGrowthAppTracker?: (wp_args) => void
+  startGrowthAppTracker?: () => void
 }
 
 declare const growth_app_args : GrothAppArgs;
