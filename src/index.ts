@@ -7,7 +7,6 @@ import {
 
 const sessionUrl = process.env.SESSION_DATA_URL!
 const sessionEventUrl = process.env.SESSION_EVENT_URL!
-const clickEventUrl = process.env.CLICK_EVENT_URL!
 const pageViewURl = process.env.PAGE_VIEW_URL!
 
 function getSiteId(): string {
@@ -23,7 +22,6 @@ function getDeviceId() {
   return deviceId;
 }
 
-// Helper function to get device info
 function getDeviceInfo(): DeviceInfo {
   const userAgent = navigator.userAgent;
   const platform = navigator?.platform || navigator?.userAgentData?.platform || "";
@@ -42,7 +40,6 @@ function getDeviceInfo(): DeviceInfo {
   };
 }
 
-// Helper function to get UTM parameters
 function getUTMParams() {
   const params = new URLSearchParams(window.location.search);
   return {
@@ -52,8 +49,6 @@ function getUTMParams() {
   };
 }
 
-
-// Initialize session data if not already present
 function initSession(siteId: string, deviceId: string): SessionData {
   const storedSessionId = localStorage.getItem("sessionId");
   const isReturningVisitor = !!storedSessionId;
@@ -61,9 +56,9 @@ function initSession(siteId: string, deviceId: string): SessionData {
   const deviceInfo = getDeviceInfo();
 
   const sessionData: SessionData = {
-    siteId,
-    deviceId,
-    sessionId: storedSessionId || getSiteId(),
+    site_id: siteId,
+    device_id: deviceId,
+    session_id: storedSessionId || getSiteId(),
     source: document.referrer,
     utm_source: utmParams.utm_source,
     utm_campaign: utmParams.utm_campaign,
@@ -72,35 +67,19 @@ function initSession(siteId: string, deviceId: string): SessionData {
     browser_type: deviceInfo.browserType,
     operating_system: deviceInfo.operatingSystem,
     page_url: window.location.href,
-    social_media_profiles: [],
-    time_spent: 0,
     form_interactions: [],
     click_events: [],
     scroll_depth: 0,
     js_errors: [],
-    heatmap_data: {},
-    total_sessions: isReturningVisitor ? 0 : 1,
-    unique_visitors: isReturningVisitor ? 0 : 1,
-    returning_visitors: isReturningVisitor ? 1 : 0,
-    new_visitors: isReturningVisitor ? 0 : 1,
-    session_duration: 0,
-    time_on_page: 0,
-    page_views: 1,
-    session_recording: [],
-    form_analyses: [],
-    funnel_analyses: [],
-    ecommerce_metrics: {
-      productViews: 0,
-      cartAdditions: 0,
-      purchaseCompletions: 0,
-    },
+    broken_links: [],
+    new_visitor: !isReturningVisitor,
     device_info: deviceInfo,
-    startTime: 0,
-    mouseMovements: [],
+    start_time: 0,
+    mouse_movements: [],
   };
 
   if (!isReturningVisitor) {
-    localStorage.setItem("sessionId", sessionData.sessionId);
+    localStorage.setItem("sessionId", sessionData.session_id);
   }
 
   return sessionData;
@@ -128,11 +107,12 @@ async function sendData(url: string, data: any): Promise<any> {
 
 async function sendSessionData(sessionData: SessionData) {
   const data = {
-    siteid: sessionData.siteId,
-    deviceId: sessionData.deviceId,
-    sessionId: sessionData.sessionId,
+    siteId: sessionData.site_id,
+    deviceId: sessionData.device_id,
+    sessionId: sessionData.session_id,
     createdAt: new Date().toISOString(),
     deviceInfo: sessionData.device_info,
+    scrollDepth: sessionData.scroll_depth,
   };
 
   try {
@@ -143,35 +123,32 @@ async function sendSessionData(sessionData: SessionData) {
   }
 }
 
-async function sendPageViewData(pageViews: any[]) {
+async function sendPageViewData(sessionData: SessionData) {
   try {
-    await Promise.all(
-      pageViews.map(async (pageView) => {
-        const pageViewData = {
-          session_id: pageView.sessionId,
-          url: pageView.url,
-          referrer: pageView.referrer,
-          created_at: pageView.created_at,
-          updated_at: new Date().toISOString(),
-        };
+    const pageViewData = {
+      session_id: sessionData.session_id,
+      url: sessionData.page_url,
+      referrer: sessionData.source,
+    };
 
-        await sendData(
-          pageViewURl,
-          pageViewData
-        );
-      })
-    );
+    await sendData(pageViewURl, pageViewData);
+
     console.log("Page view data sent successfully");
   } catch (error) {
     console.error("Error sending page view data:", error);
   }
 }
 
-async function sendClickEvents(sessionData: SessionData) {
+async function sendSessionEvents(sessionData: SessionData) {
   try {
-    // TODO: Inlcude session id in the payload
-    await sendData(sessionEventUrl, sessionData.click_events)
-    console.log("Session event data sent successfully");
+    const payload = {
+      sessionId: sessionData.session_id,
+      clicks: sessionData.click_events,
+      mouseMovements: sessionData.mouse_movements,
+    };
+
+    await sendData(sessionEventUrl, payload);
+    console.log("Session events data sent successfully");
   } catch (error) {
     console.error("Error sending session event data:", error);
   }
@@ -184,18 +161,20 @@ function startGrowthAppTracker() {
 
   // Record clicks
   document.addEventListener("click", (event) => {
-    sessionData.click_events.push({
-      sessionId: sessionData.sessionId,
+    const clickEvent: ClickEvent = {
+      session_id: sessionData.session_id,
       element: (event.target as HTMLElement).tagName,
       x: event.clientX,
       y: event.clientY,
       timestamp: Date.now(),
-    });
+    }
+
+    sessionData.click_events.push(clickEvent);
   });
 
   // Record mouse movements
   document.addEventListener("mousemove", (event) => {
-    sessionData.mouseMovements.push({
+    sessionData.mouse_movements.push({
       x: event.clientX,
       y: event.clientY,
       timestamp: Date.now(),
@@ -214,12 +193,12 @@ function startGrowthAppTracker() {
     // Record form submissions
     form.addEventListener("submit", (event) => {
       const formId = (event.target as HTMLFormElement).id || "unknown";
-      let formInteraction = sessionData.form_interactions.find(({ formId }) => formId == formId);
+      let formInteraction = sessionData.form_interactions.find(({ form_id: formId }) => formId == formId);
 
       if (!formInteraction) {
         formInteraction = {
-          formId: formId,
-          fieldInteractions: [],
+          form_id: formId,
+          field_interactions: [],
           submitted: true,
         };
       }
@@ -231,24 +210,30 @@ function startGrowthAppTracker() {
     // Record form field interactions
     form.addEventListener("focus", (event) => {
       const formId = (event.target as HTMLFormElement).id || "unknown";
-      let formInteraction = sessionData.form_interactions.find(({ formId }) => formId == formId);
+      let formInteraction = sessionData.form_interactions.find(({ form_id: formId }) => formId == formId);
 
       if (!formInteraction) {
         formInteraction = {
-          formId: formId,
-          fieldInteractions: [],
+          form_id: formId,
+          field_interactions: [],
           submitted: false,
         };
 
         sessionData.form_interactions.push(formInteraction);
       }
 
-      formInteraction.fieldInteractions.push({
-        fieldName: (event.target as HTMLInputElement).name,
+      formInteraction.field_interactions.push({
+        field_name: (event.target as HTMLInputElement).name,
         timestamp: Date.now(),
       });
     }, true);
   });
+
+  sendPageViewData(sessionData);
+  setInterval(() => {
+    sendSessionData(sessionData);
+    sendSessionEvents(sessionData);
+  }, 5000);
 
   // For debugging
   if (!process.env.NODE_ENV?.includes("prod")) {
@@ -262,6 +247,5 @@ window.startGrowthAppTracker = startGrowthAppTracker;
 if (growth_app_args?.WP) {
   window.WP = true
   window.GROWTH_APP_SITE_ID = growth_app_args.GROWTH_APP_SITE_ID;
-
-  startGrowthAppTracker()
+  window.startGrowthAppTracker();
 }
