@@ -11,4 +11,19 @@ if (!defined("ABSPATH")) {
     exit;
 }
 
-wp_enqueue_script("growth-app-script", plugins_url("js/main.js", __FILE__), [], "1.0.0", false);
+function initGrowthApp() {
+  $script_name = "growth-app-script";
+
+  wp_register_script($script_name, plugins_url("js/main.js", __FILE__), [], "1.0.0", false);
+  wp_enqueue_script($script_name);
+  wp_localize_script(
+    $script_name,
+    "growth_app_args", 
+    [
+      "GROWTH_APP_SITE_ID" => "SITE_ID",
+      "WP" => true,
+    ],
+  );
+}
+
+add_action("wp_enqueue_scripts", "initGrowthApp");

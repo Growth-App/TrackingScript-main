@@ -68,7 +68,7 @@ export interface DeviceInfo {
   operatingSystem: string;
 }
 
-export interface TrafficData {
+export interface SessionData {
   sessionId: string;
   deviceId:string;
   siteId:string;
