@@ -9,8 +9,6 @@ const sessionUrl = process.env.SESSION_DATA_URL!
 const sessionEventUrl = process.env.SESSION_EVENT_URL!
 const pageViewURl = process.env.PAGE_VIEW_URL!
 
-console.log(sessionUrl)
-
 function getSiteId(): string {
   return window?.GROWTH_APP_SITE_ID || Math.random().toString(36).substring(2, 15);
 }
@@ -89,8 +87,6 @@ function initSession(siteId: string, deviceId: string): SessionData {
 
 async function sendData(url: string, data: any): Promise<any> {
   try {
-    console.log("Sending data to url:", url)
-    console.log("Payload:", JSON.stringify(data, null,2))
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -103,7 +99,6 @@ async function sendData(url: string, data: any): Promise<any> {
     if (!response.ok) {
       throw new Error(`HTTP error! Status:${response.status}`);
     }
-    console.log(response.status)
     return await response.json();
   } catch (error) {
     console.error("Error:", error);
@@ -122,7 +117,6 @@ async function sendSessionData(sessionData: SessionData) {
 
   try {
     await sendData(sessionUrl, data);
-    // console.log("Session data sent successfully");
   } catch (error) {
     console.error("Error sending session data:", error);
   }
@@ -137,8 +131,6 @@ async function sendPageViewData(sessionData: SessionData) {
     };
 
     await sendData(pageViewURl, pageViewData);
-
-    // console.log("Page view data sent successfully");
   } catch (error) {
     console.error("Error sending page view data:", error);
   }
@@ -153,7 +145,6 @@ async function sendSessionEvents(sessionData: SessionData) {
     };
 
     await sendData(sessionEventUrl, payload);
-    // console.log("Session events data sent successfully");
   } catch (error) {
     console.error("Error sending session event data:", error);
   }
