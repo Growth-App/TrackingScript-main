@@ -58,7 +58,7 @@ function initSession(siteId: string, deviceId: string): SessionData {
   const sessionData: SessionData = {
     site_id: siteId,
     device_id: deviceId,
-    session_id: storedSessionId || getSiteId(),
+    sessionId: storedSessionId || getSiteId(),
     source: document.referrer,
     utm_source: utmParams.utm_source,
     utm_campaign: utmParams.utm_campaign,
@@ -79,7 +79,7 @@ function initSession(siteId: string, deviceId: string): SessionData {
   };
 
   if (!isReturningVisitor) {
-    localStorage.setItem("sessionId", sessionData.session_id);
+    localStorage.setItem("sessionId", sessionData.sessionId);
   }
 
   return sessionData;
@@ -109,7 +109,7 @@ async function sendSessionData(sessionData: SessionData) {
   const data = {
     siteId: sessionData.site_id,
     deviceId: sessionData.device_id,
-    sessionId: sessionData.session_id,
+    sessionId: sessionData.sessionId,
     createdAt: new Date().toISOString(),
     deviceInfo: sessionData.device_info,
     scrollDepth: sessionData.scroll_depth,
@@ -117,7 +117,6 @@ async function sendSessionData(sessionData: SessionData) {
 
   try {
     await sendData(sessionUrl, data);
-    console.log("Session data sent successfully");
   } catch (error) {
     console.error("Error sending session data:", error);
   }
@@ -126,14 +125,12 @@ async function sendSessionData(sessionData: SessionData) {
 async function sendPageViewData(sessionData: SessionData) {
   try {
     const pageViewData = {
-      session_id: sessionData.session_id,
+      sessionId: sessionData.sessionId,
       url: sessionData.page_url,
       referrer: sessionData.source,
     };
 
     await sendData(pageViewURl, pageViewData);
-
-    console.log("Page view data sent successfully");
   } catch (error) {
     console.error("Error sending page view data:", error);
   }
@@ -142,13 +139,12 @@ async function sendPageViewData(sessionData: SessionData) {
 async function sendSessionEvents(sessionData: SessionData) {
   try {
     const payload = {
-      sessionId: sessionData.session_id,
+      sessionId: sessionData.sessionId,
       clicks: sessionData.click_events,
       mouseMovements: sessionData.mouse_movements,
     };
 
     await sendData(sessionEventUrl, payload);
-    console.log("Session events data sent successfully");
   } catch (error) {
     console.error("Error sending session event data:", error);
   }
@@ -162,7 +158,7 @@ function startGrowthAppTracker() {
   // Record clicks
   document.addEventListener("click", (event) => {
     const clickEvent: ClickEvent = {
-      session_id: sessionData.session_id,
+      sessionId: sessionData.sessionId,
       element: (event.target as HTMLElement).tagName,
       x: event.clientX,
       y: event.clientY,
@@ -233,7 +229,7 @@ function startGrowthAppTracker() {
   setInterval(() => {
     sendSessionData(sessionData);
     sendSessionEvents(sessionData);
-  }, 5000);
+  }, 10000);
 
   // For debugging
   if (!process.env.NODE_ENV?.includes("prod")) {

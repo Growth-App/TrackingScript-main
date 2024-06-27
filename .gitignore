@@ -1,7 +1,7 @@
 node_modules
-index.html
 dist
 new.ts
 .env
 trackerv3.ts
 exp.ts
+extra

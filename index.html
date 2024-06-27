@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tracking Script Test</title>
+  </head>
+
+  <body>
+    <!-- Form to simulate form interactions -->
+    <form id="testForm">
+      <label for="name">Name:</label><br />
+      <input type="text" id="name" name="name" /><br />
+      <label for="email">Email:</label><br />
+      <input type="email" id="email" name="email" /><br /><br />
+      <input type="submit" value="Submit" />
+    </form>
+
+    <!-- Button to simulate click events -->
+    <button id="testButton">Click Me</button>
+
+    <!-- Div to simulate scrolling content -->
+    <div style="height: 2000px; background-color: lightblue">
+      Scroll down to simulate scrolling depth
+    </div>
+
+    <!-- Script to simulate javascript errors -->
+    <script>
+      function generateError() {
+        // This will cause a ReferenceError as 'undefinedVariable' is not defined
+        console.log(undefinedVariable);
+      }
+      generateError();
+    </script>
+
+    <!-- Simulate click events for heatmap data -->
+    <script>
+      document.addEventListener("click", function (event) {
+        console.log("Clicked on:", event.target);
+      });
+    </script>
+
+    <!-- Simulate adding a product to cart -->
+    <button class="add-to-cart">Add to Cart</button>
+
+    <!-- Simulate completing a purchase -->
+    <button class="complete-purchase">Complete Purchase</button>
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.7.2/axios.min.js"
+      integrity="sha512-JSCFHhKDilTRRXe9ak/FJ28dcpOJxzQaCd3Xg8MyF6XFjODhy/YMCM8HW0TFDckNHWUewW+kfvhin43hKtJxAw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/uuidjs@^8/dist/umd/uuidv4.min.js"></script>
+    <script
+      type="module"
+      src="./dist/main.js"
+      onLoad="(() => {window.startGrowthAppTracker()})()"
+      defer
+    ></script>
+  </body>
+</html>
