@@ -243,5 +243,6 @@ window.startGrowthAppTracker = startGrowthAppTracker;
 if (growth_app_args?.WP) {
   window.WP = true
   window.GROWTH_APP_SITE_ID = growth_app_args.GROWTH_APP_SITE_ID;
+  window.GROWTH_APP_API_KEY = growth_app_args.GROWTH_APP_API_KEY;
   window.startGrowthAppTracker();
 }

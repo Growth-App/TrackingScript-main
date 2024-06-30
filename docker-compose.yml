@@ -1,0 +1,29 @@
+version: '3.1'
+
+services:
+  wordpress:
+    image: wordpress
+    restart: unless-stopped
+    ports:
+      - 8085:80
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: growthapp
+      WORDPRESS_DB_PASSWORD: secret
+      WORDPRESS_DB_NAME: growthapp
+    volumes:
+      - wordpress:/var/www/html
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: growthapp
+      MYSQL_USER: growthapp
+      MYSQL_PASSWORD: secret
+      MYSQL_RANDOM_ROOT_PASSWORD: '1'
+    volumes:
+      - db:/var/lib/mysql
+
+volumes:
+  wordpress:
+  db:

@@ -9,6 +9,7 @@ declare namespace NodeJS {
 
 interface GrothAppArgs {
   GROWTH_APP_SITE_ID?: string;
+  GROWTH_APP_API_KEY?: string;
   WP?: boolean;
 };
 
