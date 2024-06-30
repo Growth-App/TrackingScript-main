@@ -5,7 +5,7 @@ export interface FormInteraction {
 }
 
 export interface ClickEvent {
-  sessionId:string;
+  session_id:string;
   element: string;
   x: number;
   y: number;
@@ -33,7 +33,7 @@ export interface DeviceInfo {
 }
 
 export interface SessionData {
-  sessionId: string;
+  session_id: string;
   device_id:string;
   site_id:string;
   source: string;

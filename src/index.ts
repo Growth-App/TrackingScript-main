@@ -58,7 +58,7 @@ function initSession(siteId: string, deviceId: string): SessionData {
   const sessionData: SessionData = {
     site_id: siteId,
     device_id: deviceId,
-    sessionId: storedSessionId || getSiteId(),
+    session_id: storedSessionId || getSiteId(),
     source: document.referrer,
     utm_source: utmParams.utm_source,
     utm_campaign: utmParams.utm_campaign,
@@ -79,7 +79,7 @@ function initSession(siteId: string, deviceId: string): SessionData {
   };
 
   if (!isReturningVisitor) {
-    localStorage.setItem("sessionId", sessionData.sessionId);
+    localStorage.setItem("sessionId", sessionData.session_id);
   }
 
   return sessionData;
@@ -109,7 +109,7 @@ async function sendSessionData(sessionData: SessionData) {
   const data = {
     siteId: sessionData.site_id,
     deviceId: sessionData.device_id,
-    sessionId: sessionData.sessionId,
+    sessionId: sessionData.session_id,
     createdAt: new Date().toISOString(),
     deviceInfo: sessionData.device_info,
     scrollDepth: sessionData.scroll_depth,
@@ -125,7 +125,7 @@ async function sendSessionData(sessionData: SessionData) {
 async function sendPageViewData(sessionData: SessionData) {
   try {
     const pageViewData = {
-      sessionId: sessionData.sessionId,
+      sessionId: sessionData.session_id,
       url: sessionData.page_url,
       referrer: sessionData.source,
     };
@@ -139,7 +139,7 @@ async function sendPageViewData(sessionData: SessionData) {
 async function sendSessionEvents(sessionData: SessionData) {
   try {
     const payload = {
-      sessionId: sessionData.sessionId,
+      sessionId: sessionData.session_id,
       clicks: sessionData.click_events,
       mouseMovements: sessionData.mouse_movements,
     };
@@ -158,7 +158,7 @@ function startGrowthAppTracker() {
   // Record clicks
   document.addEventListener("click", (event) => {
     const clickEvent: ClickEvent = {
-      sessionId: sessionData.sessionId,
+      session_id: sessionData.session_id,
       element: (event.target as HTMLElement).tagName,
       x: event.clientX,
       y: event.clientY,
@@ -233,13 +233,21 @@ function startGrowthAppTracker() {
 
   // For debugging
   if (!process.env.NODE_ENV?.includes("prod")) {
-    setInterval(() => console.log({ sessionData }), 10000);
+    setInterval(() => console.log({
+      sessionData,
+      // Ensure that values from the WP are passed down to the script
+      wpData: {
+        WP: window.WP,
+        GROWTH_APP_SITE_ID: window.GROWTH_APP_SITE_ID,
+        // GROWTH_APP_API_KEY: window.GROWTH_APP_API_KEY,
+      }
+    }), 10000);
   }
 }
 
 window.startGrowthAppTracker = startGrowthAppTracker;
 
-// Initialize WP plugin
+// Auto initialize WP plugin
 if (growth_app_args?.WP) {
   window.WP = true
   window.GROWTH_APP_SITE_ID = growth_app_args.GROWTH_APP_SITE_ID;

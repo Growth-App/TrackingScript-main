@@ -43,7 +43,8 @@ export default (env, argv) => {
         patterns: [
           {
             from: "./dist/main.js",
-            to: path.resolve(__dirname, "wp-plugin", "js")
+            to: path.resolve(__dirname, "wp-plugin", "js"),
+            force: true,
           },
         ],
       }),
