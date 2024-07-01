@@ -43,14 +43,14 @@ function growth_app_tracking_settings_page()
     <div>
       <img src="<?php echo plugin_dir_url(__FILE__) . 'images/growth-cro.svg'; ?>" alt="GrowthApp CRO AI Settings Page" />
     </div>
-    <div>
-      <h3>How to get your Project ID and API key</h3>
-      <p>
-        Donec suscipit suscipit eros porta malesuada. Maecenas malesuada id ex ut mollis.
-        Donec suscipit suscipit eros porta malesuada. Maecenas malesuada id ex ut mollis.
-        Donec suscipit suscipit eros porta malesuada.
-      </p>
-    </div>
+    <h3>How to get your Project ID and API key</h3>
+    <ul>
+      <li>
+        Log on to the Growth App website <a href="https://my.growthapp.ai"><span>my.growthapp.ai</span></a>
+      </li>
+      <li>Create an account and add your website.</li>
+      <li>A Project ID and API key will be generated for you.</li>
+    </ul>
     <form id="growth-app-cro" method="post" action="options.php">
       <?php settings_fields('growth-app-tracking-settings-group'); ?>
       <table class="form-table">
