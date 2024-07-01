@@ -57,8 +57,12 @@
     <script
       type="module"
       src="./dist/main.js"
-      onLoad="(() => {window.startGrowthAppTracker()})()"
+      onload="(() => {
+        window.GROWTH_APP_SITE_ID = 'TEST_PROJECT_ID';
+        window.GROWTH_APP_API_KEY = 'TEST_API_KEY';
+        window.startGrowthAppTracker()
+      })()"
       defer
-    ></script>
+    />
   </body>
 </html>
