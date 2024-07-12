@@ -3,7 +3,7 @@ services:
     image: wordpress
     restart: unless-stopped
     ports:
-      - 8085:80
+      - 9050:80
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: growthapp

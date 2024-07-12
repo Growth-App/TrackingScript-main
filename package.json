@@ -6,8 +6,9 @@
   "type": "module",
   "scripts": {
     "build": "webpack --mode development --config webpack.config.mjs",
-    "run:wp": "docker compose -p growthapp-wp up -d",
-    "run:wp:down": "docker compose -p growthapp-wp down",
+    "wp": "docker compose -p growthapp-wp up -d",
+    "wp:down": "docker compose -p growthapp-wp down",
+    "wp:drop": "docker compose -p growthapp-wp down -v",
     "build:prod": "webpack --mode production --config webpack.config.mjs",
     "start": "webpack --mode development --config webpack.config.mjs --watch"
   },

@@ -55,8 +55,8 @@ function growth_app_tracking_settings_page()
       <?php settings_fields('growth-app-tracking-settings-group'); ?>
       <table class="form-table">
         <tr valign="top">
-          <th scope="row">ProjectID</th>
-          <td><input type="text" name="growth_app_project_id" placeholder="growth app project id" value="<?php echo esc_attr(get_option('growth_app_project_id')); ?>" /></td>
+          <th scope="row">Site ID</th>
+          <td><input type="text" name="growth_app_site_id" placeholder="growth app project id" value="<?php echo esc_attr(get_option('growth_app_site_id')); ?>" /></td>
         </tr>
         <tr valign="top">
           <th scope="row">API Key</th>
@@ -84,24 +84,24 @@ function growth_app_tracking_menu()
 
 function growth_app_tracking_settings()
 {
-  register_setting('growth-app-tracking-settings-group', 'growth_app_project_id');
+  register_setting('growth-app-tracking-settings-group', 'growth_app_site_id');
   register_setting('growth-app-tracking-settings-group', 'growth_app_api_key');
 }
 
 function enqueue_growth_app_script()
 {
-  $project_id = get_option('growth_app_project_id');
+  $site_id = get_option('growth_app_site_id');
   $api_key = get_option('growth_app_api_key');
   $script_name = "growth-app-script";
 
-  if ($project_id && $api_key) {
+  if ($site_id && $api_key) {
     wp_register_script($script_name, plugins_url("js/main.js", __FILE__), [], "1.0.0", false);
     wp_enqueue_script($script_name);
     wp_localize_script(
       $script_name,
       "growth_app_args",
       [
-        "GROWTH_APP_SITE_ID" => $project_id,
+        "GROWTH_APP_SITE_ID" => $site_id,
         "GROWTH_APP_API_KEY" => $api_key,
         "WP" => true,
       ],
